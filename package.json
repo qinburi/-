@@ -1,0 +1,15 @@
+{
+  "name": "intangible-assets-workbench",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --open /app.html",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "vite": "^5.4.11"
+  },
+  "devDependencies": {}
+}
