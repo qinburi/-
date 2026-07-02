@@ -288,6 +288,7 @@ function versionModalMarkup() {
 
 function versionDetailMarkup(version) {
   if (!version) return "";
+  const hasSystemUrl = Boolean(version.systemUrl);
   return `
     <div class="version-detail-head">
       <span class="version-state">${version.status}</span>
@@ -299,6 +300,12 @@ function versionDetailMarkup(version) {
     </div>
     <div class="version-change-list">
       ${version.changes.map((item) => `<div><i></i><span>${item}</span></div>`).join("")}
+    </div>
+    <div class="version-system-actions">
+      <button class="version-system-btn${hasSystemUrl ? "" : " is-disabled"}" type="button" data-system-url="${hasSystemUrl ? version.systemUrl : ""}" aria-disabled="${String(!hasSystemUrl)}">
+        ${icon("external")}<span>${hasSystemUrl ? "查看版本系统" : "版本系统文件待提供"}</span>
+      </button>
+      <p class="version-system-tip">${hasSystemUrl ? "将在新标签页打开该版本对应的真实网页内容。" : "该历史版本的真实 HTML 文件提供后，可在配置中补充地址。"}</p>
     </div>
   `;
 }
@@ -1116,6 +1123,13 @@ function bindInteractions() {
       item.classList.toggle("is-active", selected);
       item.setAttribute("aria-selected", String(selected));
     });
+  });
+  versionModal.addEventListener("click", (event) => {
+    const button = event.target.closest(".version-system-btn");
+    if (!button || !versionModal.contains(button)) return;
+    const url = button.dataset.systemUrl;
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {

@@ -641,8 +641,9 @@ export const appVersionInfo = {
     {
       version: "v1.0.0",
       date: "2026-07-01",
-      title: "无形资产工作台首版",
+      title: "无形资产工作台基础版",
       status: "当前版本",
+      systemUrl: "/app.html",
       modules: ["资产概览", "公司资料", "案例资产", "产品矩阵", "场景运营库"],
       changes: [
         "建立汉脑无形资产工作台首页，统一展示案例、行业内容、核心平台、产品矩阵、SaaS应用和设备资产。",
@@ -656,6 +657,7 @@ export const appVersionInfo = {
       date: "2026-06-30",
       title: "资产治理与资料清单完善",
       status: "历史版本",
+      systemUrl: "",
       modules: ["公司资料", "知识产权", "品牌渠道", "详情弹窗"],
       changes: [
         "补充品牌渠道的网站、公众号、域名、证书、外购软件、AI工具和插件清单。",
@@ -668,6 +670,7 @@ export const appVersionInfo = {
       date: "2026-06-29",
       title: "成本看板与图形概览升级",
       status: "历史版本",
+      systemUrl: "",
       modules: ["资产概览", "成本看板", "图表样式"],
       changes: [
         "资产概览弹窗升级为全屏成本看板。",
@@ -680,6 +683,7 @@ export const appVersionInfo = {
       date: "2026-06-28",
       title: "案例与产品资产详情增强",
       status: "历史版本",
+      systemUrl: "",
       modules: ["案例资产", "行业内容", "产品矩阵", "SaaS应用"],
       changes: [
         "案例资产补充人员工号、责任人信息和离职提示。",
