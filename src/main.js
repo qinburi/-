@@ -7,6 +7,11 @@ import {
   docContentLedger,
   docs,
   appVersionInfo,
+  assetAccessLogs,
+  assetLifecycleDetails,
+  assetUiGalleries,
+  designLibrary,
+  idleAssetDetails,
   equipment,
   employeeDirectory,
   hardware,
@@ -14,8 +19,10 @@ import {
   industries,
   intake,
   ipAssetLedger,
+  lowUtilizationAssets,
   platforms,
   productAssetProfiles,
+  renewalTodos,
   saas,
   saasVisuals,
   sceneOperationLibrary,
@@ -38,6 +45,22 @@ const previewImages = [
   "./assets/photos/vision-inspection.jpg",
   "./assets/photos/industrial-camera.jpg"
 ];
+const topNavItems = [
+  ["cases-section", "案例资产"],
+  ["industry-section", "行业内容"],
+  ["platform-section", "核心平台"],
+  ["software-section", "产品矩阵"],
+  ["saas-section", "SaaS应用"],
+  ["scene-section", "场景运营库"],
+  ["docMatrix", "资料资产"],
+  ["hardware-section", "智能硬件"],
+  ["equipment-section", "智能设备"]
+];
+const todoStatusText = {
+  normal: "正常",
+  task: "有任务",
+  risk: "异常提醒"
+};
 
 function rotateImages(images, start, count, exclude = []) {
   const filtered = images.filter((image) => image && !exclude.includes(image));
@@ -238,6 +261,29 @@ function chartModalMarkup() {
             </div>
           </div>
         </section>
+        <div class="chart-section-title"><b>资产治理明细</b><span>访问、生命周期、低利用率</span></div>
+        <section class="asset-insight-grid">
+          <button class="asset-insight-card detail-trigger" type="button" data-detail-key="asset-access-log">
+            <span>${icon("permission")}权限访问记录</span>
+            <strong>${assetAccessLogs.length}</strong>
+            <em>访问 / 点击 / 下载明细</em>
+          </button>
+          <button class="asset-insight-card detail-trigger" type="button" data-detail-key="asset-lifecycle">
+            <span>${icon("timeline")}生命周期详情</span>
+            <strong>${assetLifecycleDetails.length}</strong>
+            <em>立项到治理全过程</em>
+          </button>
+          <button class="asset-insight-card detail-trigger danger" type="button" data-detail-key="asset-low-use">
+            <span>${icon("warning")}低利用率资产</span>
+            <strong>${lowUtilizationAssets.length}</strong>
+            <em>投入高、调用低资产</em>
+          </button>
+          <button class="asset-insight-card detail-trigger idle" type="button" data-detail-key="asset-idle">
+            <span>${icon("archive")}资产闲置情况</span>
+            <strong>${idleAssetDetails.length}</strong>
+            <em>闲置、低频、观察资产</em>
+          </button>
+        </section>
       </div>
     </div>
   `;
@@ -312,20 +358,16 @@ function versionDetailMarkup(version) {
 
 function renderShell() {
   byId("app").innerHTML = `
-    <main class="app">
+    <main class="app" style="--hero-bg: url('./assets/photos/visuals/hannao-system-map-hero.png')">
       <header class="topbar">
         <div class="brand">
           <img class="brand-logo" src="${brandLogo}" alt="汉脑科技">
           <div><h1>汉脑无形资产</h1></div>
+          <nav class="top-nav" aria-label="无形资产分类导航">
+            ${topNavItems.map((item) => `<button type="button" data-target="${item[0]}">${item[1]}</button>`).join("")}
+          </nav>
         </div>
         <div class="top-meta">
-          <label class="search-box" id="searchBox" title="搜索案例、产品、行业、资料、硬件">
-            ${icon("search")}
-            <input id="globalSearch" type="search" placeholder="请输入" autocomplete="off">
-            <button id="clearSearch" type="button" aria-label="清空搜索">${icon("close", "清空")}</button>
-          </label>
-          <button class="search-submit" type="button">${icon("search")}开始搜索</button>
-          <span class="chip search-count" id="searchCount"></span>
           <button class="chart-toggle" id="chartToggle" aria-expanded="false" title="资产概览" data-tip="资产概览">${icon("chart")}</button>
           <button class="version-chip" id="versionToggle" type="button" aria-expanded="false" title="查看版本历史">${icon("timeline")}<span>版本 ${appVersionInfo.currentVersion}</span></button>
           <span class="chip time" id="clock">--:--:--</span>
@@ -337,15 +379,16 @@ function renderShell() {
           ${detailModalMarkup()}
           ${versionModalMarkup()}
           <section class="doc-matrix" id="docMatrix"></section>
-          <nav class="quick-nav" aria-label="无形资产导航" id="quickNav">
-            ${[["cases", "案例资产"], ["industry", "行业内容"], ["platform", "核心平台"], ["software", "产品矩阵"], ["saas", "SaaS应用"], ["scene", "场景运营库"], ["docs", "资料资产"], ["hardware", "智能硬件"], ["equipment", "智能设备"]].map((item) => `
-              <div class="nav-item">
-                <button class="nav-trigger" type="button" data-menu="${item[0]}"><span>${item[1]}</span>${icon("arrow", "展开")}</button>
-                <div class="nav-menu" id="nav-${item[0]}"></div>
-              </div>
-            `).join("")}
-          </nav>
           <section class="section case-hero" id="cases-section">
+            <div class="case-search-panel">
+              <label class="search-box" id="searchBox" title="搜索案例、产品、行业、资料、硬件">
+                ${icon("search")}
+                <input id="globalSearch" type="search" placeholder="请输入" autocomplete="off">
+                <button id="clearSearch" type="button" aria-label="清空搜索">${icon("close", "清空")}</button>
+              </label>
+              <button class="search-submit" type="button">${icon("search")}开始搜索</button>
+              <span class="chip search-count" id="searchCount"></span>
+            </div>
             <div class="head case-head">
               <div>
                 <h2>${icon("case")}案例资产</h2>
@@ -375,12 +418,18 @@ function renderShell() {
               <h3>${icon("task")}待资产录入</h3>
               <div class="intake-grid" id="intake"></div>
             </div>
+            <div class="renewal-todos" id="renewalTodos"></div>
             <div class="asset-governance">
               <h3>${icon("governance")}<span class="governance-title-text">资产治理</span></h3>
-              <div class="governance-metrics">
-                <span><b>72%</b></span>
-                <span><b>35</b></span>
-                <span><b>4</b></span>
+              <div class="governance-card-grid">
+                <div class="governance-card"><span>${icon("chart")}完成度</span><b>72%</b><em>资料治理</em></div>
+                <div class="governance-card"><span>${icon("document")}治理项</span><b>35</b><em>待跟进</em></div>
+                <div class="governance-card"><span>${icon("warning")}异常项</span><b>4</b><em>需处理</em></div>
+                <button class="governance-card design-library-entry detail-trigger" type="button" data-detail-key="design-library">
+                  <span>${icon("blueprint")}设计库</span>
+                  <b>${designLibrary.length}</b>
+                  <em>未开发产品</em>
+                </button>
               </div>
             </div>
             <div class="doc-list" id="docs"></div>
@@ -397,6 +446,7 @@ function renderShell() {
 
 function renderData() {
   detailRegistry.clear();
+  registerChartDetails();
   renderDocMatrix();
   renderCaseAssets();
 
@@ -432,6 +482,7 @@ function renderData() {
       <div class="asset-ico">${icon(item[0])}</div><div><b>${item[1]}</b></div><strong>${item[3]}</strong>
     </div>
   `).join("");
+  renderRenewalTodos();
 
   const deviceCard = (item, kind, index) => {
     const key = `device-${kind}-${index}`;
@@ -466,6 +517,76 @@ function renderData() {
   `;
 }
 
+function registerChartDetails() {
+  detailRegistry.set("asset-access-log", {
+    type: "asset-log",
+    title: "权限访问、点击、下载记录",
+    subtitle: "资产概览 · 权限人操作明细",
+    iconName: "permission",
+    items: assetAccessLogs
+  });
+  detailRegistry.set("asset-lifecycle", {
+    type: "asset-lifecycle",
+    title: "无形资产生命周期详情",
+    subtitle: "资产概览 · 立项、研发、归档、授权、复用、治理",
+    iconName: "timeline",
+    items: assetLifecycleDetails
+  });
+  detailRegistry.set("asset-low-use", {
+    type: "low-use",
+    title: "低利用率资产明细",
+    subtitle: "资产概览 · 投入高、调用低、复用不足",
+    iconName: "warning",
+    items: lowUtilizationAssets
+  });
+  detailRegistry.set("asset-idle", {
+    type: "idle-assets",
+    title: "资产闲置情况明细",
+    subtitle: "资产概览 · 闲置、低频、观察资产",
+    iconName: "archive",
+    items: idleAssetDetails
+  });
+  detailRegistry.set("renewal-todos", {
+    type: "renewal-todos",
+    title: "待办提醒明细",
+    subtitle: "网站、证书、宽带、云资源、外购软件续费明细",
+    iconName: "warning",
+    items: renewalTodos
+  });
+  detailRegistry.set("design-library", {
+    type: "design-library",
+    title: "设计库",
+    subtitle: "资产治理 · 已完成设计但暂不开发的产品记录",
+    iconName: "blueprint",
+    items: designLibrary
+  });
+}
+
+function renderRenewalTodos() {
+  const counts = renewalTodos.reduce((acc, item) => {
+    acc[item.status] = (acc[item.status] || 0) + 1;
+    return acc;
+  }, {});
+  const nearest = renewalTodos.slice().sort((a, b) => a.due.localeCompare(b.due))[0];
+  const amountTotal = renewalTodos.reduce((sum, item) => sum + Number(item.amount.replace(/[^\d.]/g, "") || 0), 0);
+  byId("renewalTodos").innerHTML = `
+    <div class="renewal-head">
+      <h3>${icon("warning")}待办提醒</h3>
+      <span>${renewalTodos.length}项</span>
+    </div>
+    <div class="renewal-summary">
+      <span class="normal">正常 ${counts.normal || 0}</span>
+      <span class="task">有任务 ${counts.task || 0}</span>
+      <span class="risk">异常 ${counts.risk || 0}</span>
+    </div>
+    <div class="renewal-compact search-item" data-search="${renewalTodos.map((item) => `${item.name} ${item.category} ${item.owner}`).join(" ")} 待办 续费 网站 证书 宽带">
+      <div><span>最近到期</span><b>${nearest?.due || "-"}</b></div>
+      <div><span>预计费用</span><b>¥${amountTotal.toLocaleString("zh-CN")}</b></div>
+      <button class="detail-trigger" type="button" data-detail-key="renewal-todos">${icon("detail")}查看明细</button>
+    </div>
+  `;
+}
+
 function renderDocMatrix() {
   byId("docMatrix").innerHTML = `
     <div class="doc-matrix-title">
@@ -475,7 +596,6 @@ function renderDocMatrix() {
     <div class="doc-matrix-list">
       ${companyDocMatrix.map((group, groupIndex) => `
         <div class="doc-matrix-row search-item" data-search="${group[0]} ${group[1].flat().join(" ")} 公司资料">
-          <div class="doc-matrix-label">${group[0]}${icon("arrow")}</div>
           <div class="doc-matrix-items">
             ${group[1].map((item, itemIndex) => {
               const key = `doc-${groupIndex}-${itemIndex}`;
@@ -518,8 +638,9 @@ function visibleCaseAssets() {
 
 function caseCard(item, index) {
   const key = `case-${index}`;
-  const singleOwner = item.manager === item.engineer;
   const visual = caseVisuals[item.name] || {};
+  const costValue = caseCostValue(item);
+  const personCount = item.contributors?.length || 0;
   const images = visual.card || [
     previewImages[index % previewImages.length],
     previewImages[(index + 1) % previewImages.length]
@@ -545,6 +666,11 @@ function caseCard(item, index) {
       <div class="case-components">
         ${item.modules.slice(0, 5).map((module) => `<span>${icon("module")}${module}</span>`).join("")}
       </div>
+      <div class="case-value-chain">
+        <span>${icon("patent")}专利 ${item.patents} / 软著 ${item.copyrights}</span>
+        <span>${icon("person")}人员 ${personCount} 人</span>
+        <span>${icon("cost")}成本 ${costValue}</span>
+      </div>
       <div class="case-ip-assets">
         <button class="asset-mini asset-strip detail-trigger" type="button" data-detail-key="${patentKey}">专利 ${item.patents}</button>
         <button class="asset-mini asset-strip detail-trigger" type="button" data-detail-key="${copyrightKey}">软著 ${item.copyrights}</button>
@@ -553,15 +679,17 @@ function caseCard(item, index) {
         ${images.map((image, imageIndex) => `<img src="${image}" alt="${item.name}图片${imageIndex + 1}">`).join("")}
       </div>
       <div class="case-actions">
-        <div class="case-owner">
-          ${personBadge("产品", item.manager, item.managerState)}
-          ${personBadge("技术", item.engineer, item.engineerState)}
-          ${singleOwner ? `<span class="owner-warning">${icon("warning")}单人负责</span>` : ""}
-        </div>
         <button type="button">${icon("detail")}详情</button>
       </div>
     </article>
   `;
+}
+
+function caseCostValue(item) {
+  if (item.name.includes("象山")) return "326万";
+  if (item.name.includes("五金")) return "214万";
+  if (item.name.includes("物流")) return "238万";
+  return "96万";
 }
 
 function productAppCard(item, type, index) {
@@ -695,6 +823,7 @@ function createProductDetail(item, type, index, visual, secondaryImages) {
   const iconName = type === "saas" ? "saas" : "software";
   const image = visual.image || previewImages[(index + (type === "saas" ? 2 : 0)) % previewImages.length];
   const profile = productAssetProfiles[title] || defaultProductProfile(title);
+  const previews = visual.previews || [image, ...secondaryImages];
   return {
     type: "product",
     title: `${title}${type === "saas" ? " SaaS应用" : " 工业软件"}`,
@@ -709,7 +838,8 @@ function createProductDetail(item, type, index, visual, secondaryImages) {
     ],
     description: visual.description || `${title}面向${item[1]}业务场景，沉淀标准接口、模块能力、专利软著和可复用资料。`,
     tags: [item[1], item[2], type === "saas" ? "客户同步" : "标准模块"],
-    previews: visual.previews || [image, ...secondaryImages],
+    previews,
+    uiGallery: uiGalleryFor(title, previews),
     support: type === "saas" ? ["手机", "电脑端", "企业微信", "订阅门户"] : ["电脑端", "工位机", "电子看板", "接口网关"],
     docs: ["产品需求规格说明书", "技术架构设计方案", "演示与解决方案PPT"],
     profile,
@@ -743,16 +873,39 @@ function createDocDetail(groupName, item) {
 
 function createIpDetail(kind, assetName, count) {
   const source = ipAssetLedger[kind];
-  const related = source.items.filter((item) => item[2].includes(assetName) || assetName.includes(item[2])).slice(0, 3);
+  const related = source.items.filter((item) => item[2].includes(assetName) || assetName.includes(item[2]));
+  const items = completeIpItems(kind, assetName, Number(count || 0), related);
   return {
     type: "ip",
     title: `${assetName}${source.label}详情`,
-    subtitle: `${source.label} · 数量 ${count} · 证书台账`,
+    subtitle: `${source.label} · 数量 ${items.length || count} · 证书台账`,
     iconName: kind === "patent" ? "patent" : "copyright",
     tags: [source.label, assetName, count > 0 ? "已有关联" : "申报中"],
     metrics: [["数量", String(count), "卡片"], ["最近获得", count > 0 ? "2025-12-18" : "2026-03-22", "证书"], ["资料状态", "已建档", "治理"]],
-    items: related.length ? related : [["HN-IP-2026-009", `${assetName}${source.label}资产登记`, assetName, "2026-03-22", "申报中"]]
+    items
   };
+}
+
+function completeIpItems(kind, assetName, count, related) {
+  const source = ipAssetLedger[kind];
+  const targetCount = Math.max(count, related.length, 1);
+  const base = related.length ? related : source.items.slice(0, Math.min(source.items.length, targetCount));
+  const items = base.map((item) => [...item]);
+  const prefix = kind === "patent" ? "HN-PAT" : "HN-SR";
+  const label = source.label;
+  const status = kind === "patent" ? "已授权" : "已登记";
+  while (items.length < targetCount) {
+    const index = items.length + 1;
+    const year = 2020 + (index % 6);
+    items.push([
+      `${prefix}-${year}-${String(index).padStart(3, "0")}`,
+      `${assetName}${label}明细${index}`,
+      assetName,
+      `${year}-${String((index % 12) + 1).padStart(2, "0")}-${String((index % 24) + 1).padStart(2, "0")}`,
+      index % 5 === 0 ? "申报中" : status
+    ]);
+  }
+  return items.slice(0, targetCount);
 }
 
 function createPersonDetail(code) {
@@ -780,6 +933,7 @@ function createSceneDetail(item) {
 }
 
 function createDeviceDetail(item, kind, index) {
+  const previews = [item[2], previewImages[(index + 1) % previewImages.length], previewImages[(index + 2) % previewImages.length]];
   return {
     type: "device",
     title: item[0],
@@ -794,13 +948,23 @@ function createDeviceDetail(item, kind, index) {
     ],
     description: `${item[0]}用于${item[1]}场景，纳入无形资产工作台进行图片、资料、应用案例和知识产权关联展示。`,
     tags: [kind, item[1], "现场资产"],
-    previews: [item[2], previewImages[(index + 1) % previewImages.length], previewImages[(index + 2) % previewImages.length]],
+    previews,
+    uiGallery: uiGalleryFor(item[0], previews),
     support: ["现场终端", "数据采集", "资产台账", "资料归档"],
     docs: ["设备照片", "应用案例", "维护资料"]
   };
 }
 
+function uiGalleryFor(title, fallbackImages) {
+  const configured = assetUiGalleries[title];
+  return {
+    url: configured?.url || "",
+    images: configured?.images?.length ? configured.images.slice(0, 3) : fallbackImages.slice(0, 3)
+  };
+}
+
 function createCaseDetail(item, visual = {}) {
+  const previews = visual.previews || [previewImages[0], previewImages[1], previewImages[3]];
   return {
     type: "case",
     title: item.name,
@@ -810,15 +974,18 @@ function createCaseDetail(item, visual = {}) {
     metrics: [
       ["专利", String(item.patents), "已关联"],
       ["软著", String(item.copyrights), "已关联"],
-      ["调用活跃度", item.calls, "累计"]
+      ["人员", String(item.contributors?.length || 0), "贡献"],
+      ["成本", caseCostValue(item), "沉淀"]
     ],
     description: visual.detail || item.intro,
     tags: [item.industry, statusLabel(item.status), `${item.sourceYear}演进`],
-    previews: visual.previews || [previewImages[0], previewImages[1], previewImages[3]],
+    previews,
+    uiGallery: caseUiGallery(item, previews),
     support: item.components,
     docs: ["公开案例资料", "知识产权台账"],
     modules: item.modules,
     components: item.components,
+    contributors: item.contributors,
     evolution: item.evolution,
     evidence: item.evidence,
     owners: [
@@ -826,6 +993,15 @@ function createCaseDetail(item, visual = {}) {
       ["技术负责人", item.engineer, item.engineerState]
     ],
     roleAllowed: true
+  };
+}
+
+function caseUiGallery(item, fallbackImages) {
+  const device = item.components.includes("工位机") ? "工位机" : item.components.includes("手持机") ? "手持机" : "";
+  const configured = device ? assetUiGalleries[device] : null;
+  return {
+    url: configured?.url || "",
+    images: configured?.images?.length ? configured.images.slice(0, 3) : fallbackImages.slice(0, 3)
   };
 }
 
@@ -853,15 +1029,12 @@ function evidenceIcon(label) {
 }
 
 function renderNavigation() {
-  byId("nav-cases").innerHTML = visibleCaseAssets().map((item, index) => navMenuButton(`case-${index}`, item.name, item.industry, "case")).join("");
-  byId("nav-platform").innerHTML = platforms.map((item, index) => navMenuButton(`platform-${index}`, item[1], item[2], "platform")).join("");
-  byId("nav-software").innerHTML = software.map((item, index) => navMenuButton(`software-${index}`, item[0], item[2], "software")).join("");
-  byId("nav-saas").innerHTML = saas.map((item, index) => navMenuButton(`saas-${index}`, item[0], item[2], "saas")).join("");
-  byId("nav-scene").innerHTML = sceneOperationLibrary.map((item) => navMenuButton("scene-section", item.name, item.device, "equipment")).join("");
-  byId("nav-industry").innerHTML = industries.map((item) => navMenuButton("industry-section", item[0], item[1].length, "industry")).join("");
-  byId("nav-docs").innerHTML = docs.map((item) => navMenuButton("docs", item[0], item[1].length, "document")).join("");
-  byId("nav-hardware").innerHTML = hardware.map((item) => navMenuButton("hardware-section", item[0], item[1], "hardware")).join("");
-  byId("nav-equipment").innerHTML = equipment.map((item) => navMenuButton("equipment-section", item[0], item[1], "equipment")).join("");
+  document.querySelectorAll(".top-nav button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const target = byId(button.dataset.target);
+      if (target) target.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  });
 }
 
 function docIcon(groupName) {
@@ -873,8 +1046,110 @@ function docIcon(groupName) {
   }[groupName] || "document";
 }
 
-function navMenuButton(target, label, meta, iconName) {
-  return `<button type="button" data-target="${target}"><span>${icon(iconName)}${label}</span><small>${meta}</small></button>`;
+const detailOwners = ["杜英杰", "艾总", "冯小燕", "秦步日", "武文豪", "陈良", "郑玉悦", "郭振"];
+
+function hashText(text) {
+  return Array.from(text).reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 7).toString(36);
+}
+
+function ownerFor(detail, offset = 0) {
+  const text = `${detail.title || ""}${detail.subtitle || ""}`;
+  const seed = Array.from(text).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return detailOwners[(seed + offset) % detailOwners.length];
+}
+
+function normalizeRow(item, index, fallbackTitle = "资料") {
+  if (Array.isArray(item)) {
+    return [
+      item[0] || `${fallbackTitle}${index + 1}`,
+      item[1] || "资料资产",
+      item[2] || item[3] || "已归档",
+      item[4] || item[3] || "可查看"
+    ];
+  }
+  return [String(item || `${fallbackTitle}${index + 1}`), "资料资产", "已归档", "可查看"];
+}
+
+function detailInfoRows(detail, kind) {
+  const title = detail.title || "资产详情";
+  const owner = ownerFor(detail);
+  if (kind === "docs") {
+    const source = detail.contentList?.length
+      ? detail.contentList
+      : detail.items?.length
+        ? detail.items.slice(0, 8)
+        : [...(detail.docs || []), ...(detail.evidence || []), ...(detail.modules || []), ...(detail.components || [])].slice(0, 8);
+    const rows = source.length ? source.map((item, index) => normalizeRow(item, index, "资料")) : [
+      [`${title}资料总表`, "资料资产", "已归档", "可查看"],
+      [`${title}证明材料`, "审计凭证", "已归档", "可查看"],
+      [`${title}复用说明`, "内部资料", "已归档", "可查看"]
+    ];
+    return rows.slice(0, 10);
+  }
+  if (kind === "path") {
+    const base = title.replace(/[^\u4e00-\u9fa5A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return [
+      ["资产台账主目录", `/无形资产台账/${detail.tags?.[0] || "综合资产"}/${base || "资产"}`, owner, "已同步"],
+      ["证据资料目录", `/归档资料/证据链/${base || "资产"}`, ownerFor(detail, 1), "已归档"],
+      ["版本快照目录", `/versions/${appVersionInfo.currentVersion}/assets/${base || "asset"}`, ownerFor(detail, 2), "可追溯"]
+    ];
+  }
+  if (kind === "owner") {
+    if (detail.owners?.length) {
+      return detail.owners.map((item, index) => {
+        const person = employeeDirectory[item[1]];
+        return [item[0], person?.name || item[1], person?.department || "项目交付部", statusText(person?.status || item[2])];
+      });
+    }
+    return [
+      ["资产负责人", owner, "资产治理", "在岗"],
+      ["资料维护人", ownerFor(detail, 1), "资料归档", "在岗"],
+      ["复核确认人", ownerFor(detail, 2), "管理复核", "在岗"]
+    ];
+  }
+  return [
+    ["2026-07-02", owner, "更新资料卡片展示", "已完成"],
+    ["2026-06-30", ownerFor(detail, 1), "补齐证据与归档路径", "已完成"],
+    ["2026-06-28", ownerFor(detail, 2), "建立资产详情台账", "已完成"]
+  ];
+}
+
+function infoCardDetail(detail, kind, label, iconName) {
+  return {
+    type: "info-card",
+    title: `${detail.title} / ${label}`,
+    subtitle: `${label} · ${detail.subtitle || "资产详情"}`,
+    iconName,
+    tags: [label, detail.tags?.[0] || "资料资产", "可追溯"],
+    rows: detailInfoRows(detail, kind)
+  };
+}
+
+function detailInfoCards(detail) {
+  if (detail.type === "info-card") return "";
+  const cards = [
+    ["docs", "资料清单", "document"],
+    ["path", "归档路径", "archive"],
+    ["owner", "责任人", "owner"],
+    ["updates", "更新记录", "timeline"]
+  ];
+  const baseKey = `info-${detail.type || "detail"}-${hashText(detail.title || detail.subtitle || "asset")}`;
+  return `
+    <div class="detail-info-card-grid">
+      ${cards.map(([kind, label, iconName]) => {
+        const key = `${baseKey}-${kind}`;
+        const rows = detailInfoRows(detail, kind);
+        detailRegistry.set(key, infoCardDetail(detail, kind, label, iconName));
+        return `
+          <button class="detail-info-card detail-trigger" type="button" data-detail-key="${key}">
+            <span>${icon(iconName)}${label}</span>
+            <em>${rows.length}项</em>
+            <b>${icon("detail")}查看</b>
+          </button>
+        `;
+      }).join("")}
+    </div>
+  `;
 }
 
 function detailMarkup(detail) {
@@ -883,6 +1158,13 @@ function detailMarkup(detail) {
   if (detail.type === "ip") return ipDetailMarkup(detail);
   if (detail.type === "person") return personDetailMarkup(detail);
   if (detail.type === "scene") return sceneDetailMarkup(detail);
+  if (detail.type === "info-card") return infoCardDetailMarkup(detail);
+  if (detail.type === "asset-log") return assetLogDetailMarkup(detail);
+  if (detail.type === "asset-lifecycle") return lifecycleDetailMarkup(detail);
+  if (detail.type === "low-use") return lowUseDetailMarkup(detail);
+  if (detail.type === "idle-assets") return idleAssetDetailMarkup(detail);
+  if (detail.type === "renewal-todos") return renewalTodoDetailMarkup(detail);
+  if (detail.type === "design-library") return designLibraryDetailMarkup(detail);
   return `
     <div class="detail-head">
       <div class="detail-app-icon">${icon(detail.iconName)}</div>
@@ -908,10 +1190,8 @@ function detailMarkup(detail) {
         <div class="detail-previews">
           ${detail.previews.map((image, index) => `<img src="${image}" alt="${detail.title}界面${index + 1}">`).join("")}
         </div>
-        <h3>${icon("document")}相关文档</h3>
-        <div class="detail-docs">
-          ${detail.docs.map((doc) => `<div><span>${icon("document")}${doc}</span><button type="button">${icon("download")}下载</button></div>`).join("")}
-        </div>
+        ${detail.uiGallery ? uiGalleryMarkup(detail) : ""}
+        ${detailInfoCards(detail)}
         ${detail.profile ? productProfileMarkup(detail) : ""}
       </section>
       <aside class="detail-side">
@@ -929,6 +1209,22 @@ function detailMarkup(detail) {
         ${detail.appDownload ? `<h3>${icon("download")}最新版本</h3><div class="download-box"><b>${detail.title}</b><span>V${detail.subtitle.match(/V[0-9.]+/)?.[0]?.replace("V", "") || "2.0"} · 2026-05-20</span><button type="button">${icon("download")}下载资料包</button></div>` : ""}
       </aside>
     </div>
+  `;
+}
+
+function uiGalleryMarkup(detail) {
+  const url = detail.uiGallery.url;
+  return `
+    <h3>${icon("image")}UI图访问</h3>
+    <div class="ui-gallery">
+      ${detail.uiGallery.images.map((image, index) => `
+        <a class="ui-shot" href="${url || image}" target="_blank" rel="noopener noreferrer">
+          <img src="${image}" alt="${detail.title}UI图${index + 1}">
+          <span>${url ? "查看UI" : "UI地址待配置"}</span>
+        </a>
+      `).join("")}
+    </div>
+    <a class="ui-link ${url ? "" : "is-disabled"}" href="${url || "#"}" target="_blank" rel="noopener noreferrer" aria-disabled="${String(!url)}">${icon("external")}${url ? "打开蓝湖UI地址" : "UI地址待配置"}</a>
   `;
 }
 
@@ -967,7 +1263,7 @@ function docDetailMarkup(detail) {
           `).join("")}
         </div>
       ` : ""}
-      <div class="detail-docs">${detail.docs.map((doc) => `<div><span>${icon("document")}${doc}</span><button type="button">${icon("detail")}查看</button></div>`).join("")}</div>
+      ${detailInfoCards(detail)}
     </div>
   `;
 }
@@ -982,6 +1278,7 @@ function ipDetailMarkup(detail) {
     <div class="ip-table">
       ${detail.items.map((item) => `<div><b>${item[1]}</b><span>${item[0]}</span><span>关联：${item[2]}</span><span>获得时间：${item[3]}</span><em>${item[4]}</em></div>`).join("")}
     </div>
+    ${detailInfoCards(detail)}
   `;
 }
 
@@ -998,6 +1295,7 @@ function personDetailMarkup(detail) {
       <h3>${icon("case")}负责资产</h3>
       <div class="detail-chip-grid">${person.assets.map((item) => `<span>${item}</span>`).join("")}</div>
       <p>${person.note}</p>
+      ${detailInfoCards(detail)}
     </div>
   `;
 }
@@ -1012,8 +1310,115 @@ function sceneDetailMarkup(detail) {
     <div class="scene-detail">
       <div class="detail-hero scene-detail-hero"><img src="${detail.heroImage}" alt="${detail.title}"></div>
       <div class="scene-flow"><div><span>使用场景</span><b>${scene.scene}</b></div><div><span>适用岗位</span><b>${scene.role}</b></div><div><span>产出资料</span><b>${scene.output}</b></div></div>
-      <h3>${icon("document")}资料下载</h3>
-      <div class="detail-docs">${scene.docs.map((doc) => `<div><span>${icon("document")}${doc}</span><button type="button">${icon("download")}下载</button></div>`).join("")}</div>
+      ${detailInfoCards(detail)}
+    </div>
+  `;
+}
+
+function infoCardDetailMarkup(detail) {
+  return `
+    <div class="detail-head">
+      <div class="detail-app-icon">${icon(detail.iconName)}</div>
+      <div><h2 id="detailTitle">${detail.title}</h2><p>${detail.subtitle}</p><div class="detail-tags">${detail.tags.map((tag) => `<span>${icon("tag")}${tag}</span>`).join("")}</div></div>
+    </div>
+    <div class="info-card-detail-list">
+      ${detail.rows.map((row) => `
+        <div>
+          <b>${row[0]}</b>
+          <span>${row[1]}</span>
+          <em>${row[2]}</em>
+          <strong>${row[3]}</strong>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function assetLogDetailMarkup(detail) {
+  return `
+    <div class="detail-head">
+      <div class="detail-app-icon">${icon("permission")}</div>
+      <div><h2 id="detailTitle">${detail.title}</h2><p>${detail.subtitle}</p><div class="detail-tags"><span>${icon("tag")}权限记录</span><span>${icon("tag")}审计明细</span></div></div>
+    </div>
+    <div class="asset-log-table">
+      <div class="asset-log-head"><span>时间</span><span>姓名</span><span>动作</span><span>资产</span><span>内容</span><span>状态</span></div>
+      ${detail.items.map((item) => `<div><span>${item[0]}</span><b>${item[1]}</b><em>${item[2]}</em><span>${item[3]}</span><span>${item[4]}</span><strong class="${item[5] === "异常提醒" ? "risk" : item[5] === "有任务" ? "task" : "normal"}">${item[5]}</strong></div>`).join("")}
+    </div>
+  `;
+}
+
+function lifecycleDetailMarkup(detail) {
+  return `
+    <div class="detail-head">
+      <div class="detail-app-icon">${icon("timeline")}</div>
+      <div><h2 id="detailTitle">${detail.title}</h2><p>${detail.subtitle}</p><div class="detail-tags"><span>${icon("tag")}生命周期</span><span>${icon("tag")}资产治理</span></div></div>
+    </div>
+    <div class="lifecycle-list">
+      ${detail.items.map((item) => `<div><i></i><section><b>${item[0]}</b><span>${item[1]} · ${item[3]} · ${item[4]}</span><p>${item[2]}</p></section></div>`).join("")}
+    </div>
+  `;
+}
+
+function lowUseDetailMarkup(detail) {
+  return `
+    <div class="detail-head">
+      <div class="detail-app-icon">${icon("warning")}</div>
+      <div><h2 id="detailTitle">${detail.title}</h2><p>${detail.subtitle}</p><div class="detail-tags"><span>${icon("tag")}低利用率</span><span>${icon("tag")}复用风险</span></div></div>
+    </div>
+    <div class="low-use-list">
+      ${detail.items.map((item) => `<div><header><b>${item[0]}</b><strong>${item[1]}</strong></header><span>累计投入 ${item[2]} · 调用量 ${item[3]}</span><p>${item[4]}</p><em>${item[5]}</em></div>`).join("")}
+    </div>
+  `;
+}
+
+function idleAssetDetailMarkup(detail) {
+  return `
+    <div class="detail-head">
+      <div class="detail-app-icon">${icon("archive")}</div>
+      <div><h2 id="detailTitle">${detail.title}</h2><p>${detail.subtitle}</p><div class="detail-tags"><span>${icon("tag")}闲置资产</span><span>${icon("tag")}治理建议</span></div></div>
+    </div>
+    <div class="low-use-list idle-list">
+      ${detail.items.map((item) => `<div><header><b>${item[0]}</b><strong>${item[1]} · ${item[2]}</strong></header><span>累计投入 ${item[3]}</span><p>${item[4]}</p><em>${item[5]}</em></div>`).join("")}
+    </div>
+  `;
+}
+
+function renewalTodoDetailMarkup(detail) {
+  return `
+    <div class="detail-head">
+      <div class="detail-app-icon">${icon("warning")}</div>
+      <div><h2 id="detailTitle">${detail.title}</h2><p>${detail.subtitle}</p><div class="detail-tags"><span>${icon("tag")}续费待办</span><span>${icon("tag")}费用提醒</span></div></div>
+    </div>
+    <div class="renewal-detail-list">
+      ${detail.items.map((item) => `
+        <div class="${item.status}">
+          <header><b>${item.name}</b><strong>${todoStatusText[item.status]}</strong></header>
+          <span>${item.category} · 到期 ${item.due} · ${item.amount}</span>
+          <p>${item.owner} · ${item.note}</p>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function designLibraryDetailMarkup(detail) {
+  return `
+    <div class="detail-head">
+      <div class="detail-app-icon">${icon("blueprint")}</div>
+      <div><h2 id="detailTitle">${detail.title}</h2><p>${detail.subtitle}</p><div class="detail-tags"><span>${icon("tag")}设计沉淀</span><span>${icon("tag")}未开发产品</span><span>${icon("tag")}原因留痕</span></div></div>
+    </div>
+    <div class="design-library-list">
+      ${detail.items.map((item) => `
+        <div>
+          <header>
+            <b>${item.name}</b>
+            <strong>${item.status}</strong>
+          </header>
+          <span>${item.category} · ${item.designDate} · ${item.designer}</span>
+          <p>${item.reason}</p>
+          <em>${item.reuse}</em>
+        </div>
+      `).join("")}
     </div>
   `;
 }
@@ -1040,30 +1445,34 @@ function caseDetailMarkup(detail) {
         </div>
         <h3>${icon("solution")}案例价值</h3>
         <p>${detail.description}</p>
+        <h3>${icon("timeline")}价值脉络</h3>
+        <div class="case-value-flow">
+          <span>${icon("patent")}知识产权 ${detail.metrics[0][1]}项专利 / ${detail.metrics[1][1]}项软著</span>
+          <span>${icon("person")}人员贡献 ${detail.metrics[2][1]}人协同</span>
+          <span>${icon("cost")}成本沉淀 ${detail.metrics[3][1]}</span>
+        </div>
         <h3>${icon("module")}模块构成</h3>
         <div class="detail-chip-grid">${detail.modules.map((item) => `<span>${icon("module")}${item}</span>`).join("")}</div>
         <h3>${icon("component")}标准组件</h3>
         <div class="detail-chip-grid">${detail.components.map((item) => `<span>${icon("component")}${item}</span>`).join("")}</div>
+        <h3>${icon("person")}组成人员贡献度</h3>
+        <div class="contribution-list">
+          ${detail.contributors.map((member) => `<div style="--w:${member[2]}%"><b>${member[0]}</b><span>${member[1]}</span><i></i><em>${member[2]}%</em></div>`).join("")}
+        </div>
         <h3>${icon("timeline")}演进动线</h3>
         <div class="detail-timeline">${detail.evolution.map((item) => `<span>${item}</span>`).join("")}</div>
         <h3>${icon("image")}现场图片</h3>
         <div class="detail-previews">
           ${detail.previews.map((image, index) => `<img src="${image}" alt="${detail.title}现场图${index + 1}">`).join("")}
         </div>
+        ${detail.uiGallery ? uiGalleryMarkup(detail) : ""}
       </section>
       <aside class="case-detail-side">
         <h3>${icon("owner")}组织责任</h3>
         <div class="detail-owner-list">
           ${detail.owners.map((owner) => personBadge(owner[0], owner[1], owner[2])).join("")}
         </div>
-        <h3>${icon("document")}相关资料</h3>
-        <div class="detail-docs">
-          ${detail.evidence.map((item) => `<div><span>${icon("contract")}${item}</span><button type="button">${icon("detail")}追溯</button></div>`).join("")}
-        </div>
-        <h3>${icon("permission")}角色可见资料</h3>
-        <div class="detail-docs">
-          ${detail.docs.map((doc) => `<div><span>${icon(doc.includes("代码") || doc.includes("接口") ? "code" : doc.includes("合同") ? "contract" : doc.includes("蓝图") ? "blueprint" : "document")}${doc}</span><button type="button">${icon("download")}下载</button></div>`).join("")}
-        </div>
+        ${detailInfoCards(detail)}
       </aside>
     </div>
   `;
@@ -1149,26 +1558,6 @@ function bindInteractions() {
     event.stopPropagation();
     event.preventDefault();
     setDetailModal(true, trigger.dataset.detailKey);
-  });
-
-  document.querySelectorAll(".nav-trigger").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      const item = event.currentTarget.closest(".nav-item");
-      document.querySelectorAll(".nav-item").forEach((nav) => {
-        if (nav !== item) nav.classList.remove("is-open");
-      });
-      item.classList.toggle("is-open");
-    });
-  });
-  document.querySelectorAll(".nav-menu button").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      const target = byId(event.currentTarget.dataset.target);
-      document.querySelectorAll(".nav-item").forEach((item) => item.classList.remove("is-open"));
-      if (target) target.scrollIntoView({ block: "center", behavior: "smooth" });
-    });
-  });
-  document.addEventListener("click", (event) => {
-    if (!event.target.closest(".quick-nav")) document.querySelectorAll(".nav-item").forEach((item) => item.classList.remove("is-open"));
   });
 
   document.querySelectorAll(".scene img").forEach((image) => {
