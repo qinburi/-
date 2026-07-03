@@ -68,6 +68,134 @@ function rotateImages(images, start, count, exclude = []) {
   return Array.from({ length: count }, (_, offset) => filtered[(start + offset) % filtered.length]);
 }
 
+function numberFromText(value) {
+  return Number(String(value || "").replace(/,/g, "").match(/\d+(?:\.\d+)?/)?.[0] || 0);
+}
+
+function effortDaysFromHours(hours = []) {
+  const totalHours = hours.reduce((sum, item) => sum + numberFromText(item[1]), 0);
+  return Math.max(1, Math.round(totalHours / 8));
+}
+
+function effortDaysFromCost(cost) {
+  const costWan = numberFromText(cost);
+  return Math.max(1, Math.round(costWan / 0.12));
+}
+
+function personByName(name) {
+  return Object.entries(employeeDirectory).find(([, person]) => person.name === name);
+}
+
+function personByCodeOrName(value) {
+  if (employeeDirectory[value]) return [value, employeeDirectory[value]];
+  return personByName(value);
+}
+
+function contributionPeople(contributors = [], fallbackSeed = "") {
+  if (contributors.length) {
+    return contributors.map((member) => {
+      const found = personByName(member[0]);
+      return {
+        name: member[0],
+        role: member[1],
+        ratio: member[2],
+        code: found?.[0] || "人员编号待补",
+        status: statusText(found?.[1]?.status || "active")
+      };
+    });
+  }
+  const seed = Array.from(fallbackSeed).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const employees = Object.entries(employeeDirectory);
+  return Array.from({ length: 3 }, (_, index) => {
+    const [code, person] = employees[(seed + index) % employees.length];
+    return {
+      name: person.name,
+      role: index === 0 ? "产品规划" : index === 1 ? "研发交付" : "资料治理",
+      ratio: [42, 35, 23][index],
+      code,
+      status: statusText(person.status)
+    };
+  });
+}
+
+function profileInvestment(profile, versionFallback = appVersionInfo.currentVersion) {
+  const cost = profile?.costs?.[0]?.[1] || "96万";
+  return {
+    days: profile?.hours?.length ? effortDaysFromHours(profile.hours) : effortDaysFromCost(cost),
+    cost,
+    version: profile?.versions?.[0]?.[0] || versionFallback
+  };
+}
+
+function caseInvestment(item) {
+  const cost = caseCostValue(item);
+  return {
+    days: effortDaysFromCost(cost),
+    cost,
+    version: item.evolution?.at(-1)?.split(" ")?.[0] || appVersionInfo.currentVersion
+  };
+}
+
+function formatWan(value) {
+  const rounded = Math.round(value * 10) / 10;
+  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}万`;
+}
+
+function caseContributionPeople(item, investment) {
+  const costWan = numberFromText(investment.cost);
+  return contributionPeople(item.contributors, item.name).map((member) => ({
+    ...member,
+    effortDays: Math.max(1, Math.round(investment.days * Number(member.ratio || 0) / 100)),
+    cost: formatWan(costWan * Number(member.ratio || 0) / 100)
+  }));
+}
+
+function industrySourceMap() {
+  return Object.fromEntries(industries.map((zone) => [zone[0], zone[1]]));
+}
+
+function industryEntry(source, item) {
+  return {
+    source,
+    visualTitle: item[0],
+    item: source === "纺织服装" ? item : [`${source}${item[0]}`, item[1], item[2]]
+  };
+}
+
+function industryDisplayZones() {
+  const sourceMap = industrySourceMap();
+  const textileItems = (sourceMap["纺织服装"] || []).map((item) => industryEntry("纺织服装", item));
+  const mergedZone = (name, sources) => ({
+    name,
+    items: sources.flatMap((source) => (sourceMap[source] || []).map((item) => industryEntry(source, item)))
+  });
+  const withMore = (zone, visibleCount) => ({
+    ...zone,
+    visibleItems: zone.items.slice(0, visibleCount),
+    moreItems: zone.items.slice(visibleCount)
+  });
+  const highEndZone = mergedZone("高端设备", ["物流装备"]);
+  return [
+    {
+      name: "纺织服装",
+      items: textileItems,
+      visibleItems: textileItems.slice(0, 9),
+      moreItems: textileItems.slice(9)
+    },
+    withMore(mergedZone("汽车零部件/五金", ["汽车零部件", "五金"]), 3),
+    withMore(mergedZone("医疗食品", ["医疗", "食品"]), 3),
+    { ...highEndZone, visibleItems: highEndZone.items.slice(0, 3), moreItems: highEndZone.items },
+    withMore(mergedZone("其他", ["塑料", "电子电气", "童车", "政府类"]), 9)
+  ];
+}
+
+function saasDisplayItems() {
+  return {
+    visibleItems: saas.slice(0, 9),
+    moreItems: saas.slice(9)
+  };
+}
+
 function productSecondaryImages(type, title, index) {
   const visualMap = type === "saas" ? saasVisuals : softwareVisuals;
   const visual = visualMap[title];
@@ -261,29 +389,6 @@ function chartModalMarkup() {
             </div>
           </div>
         </section>
-        <div class="chart-section-title"><b>资产治理明细</b><span>访问、生命周期、低利用率</span></div>
-        <section class="asset-insight-grid">
-          <button class="asset-insight-card detail-trigger" type="button" data-detail-key="asset-access-log">
-            <span>${icon("permission")}权限访问记录</span>
-            <strong>${assetAccessLogs.length}</strong>
-            <em>访问 / 点击 / 下载明细</em>
-          </button>
-          <button class="asset-insight-card detail-trigger" type="button" data-detail-key="asset-lifecycle">
-            <span>${icon("timeline")}生命周期详情</span>
-            <strong>${assetLifecycleDetails.length}</strong>
-            <em>立项到治理全过程</em>
-          </button>
-          <button class="asset-insight-card detail-trigger danger" type="button" data-detail-key="asset-low-use">
-            <span>${icon("warning")}低利用率资产</span>
-            <strong>${lowUtilizationAssets.length}</strong>
-            <em>投入高、调用低资产</em>
-          </button>
-          <button class="asset-insight-card detail-trigger idle" type="button" data-detail-key="asset-idle">
-            <span>${icon("archive")}资产闲置情况</span>
-            <strong>${idleAssetDetails.length}</strong>
-            <em>闲置、低频、观察资产</em>
-          </button>
-        </section>
       </div>
     </div>
   `;
@@ -368,7 +473,14 @@ function renderShell() {
           </nav>
         </div>
         <div class="top-meta">
-          <button class="chart-toggle" id="chartToggle" aria-expanded="false" title="资产概览" data-tip="资产概览">${icon("chart")}</button>
+          <label class="search-box top-search" id="searchBox" title="搜索案例、产品、行业、资料、硬件">
+            ${icon("search")}
+            <input id="globalSearch" type="search" placeholder="搜索" autocomplete="off">
+            <button id="clearSearch" type="button" aria-label="清空搜索">${icon("close", "清空")}</button>
+          </label>
+          <button class="search-submit top-search-submit" type="button" title="开始搜索">${icon("search")}<span>搜索</span></button>
+          <span class="chip search-count" id="searchCount"></span>
+          <button class="chart-toggle" id="chartToggle" aria-expanded="false" title="资产概览">${icon("chart")}<span>资产概览</span></button>
           <button class="version-chip" id="versionToggle" type="button" aria-expanded="false" title="查看版本历史">${icon("timeline")}<span>版本 ${appVersionInfo.currentVersion}</span></button>
           <span class="chip time" id="clock">--:--:--</span>
         </div>
@@ -380,19 +492,11 @@ function renderShell() {
           ${versionModalMarkup()}
           <section class="doc-matrix" id="docMatrix"></section>
           <section class="section case-hero" id="cases-section">
-            <div class="case-search-panel">
-              <label class="search-box" id="searchBox" title="搜索案例、产品、行业、资料、硬件">
-                ${icon("search")}
-                <input id="globalSearch" type="search" placeholder="请输入" autocomplete="off">
-                <button id="clearSearch" type="button" aria-label="清空搜索">${icon("close", "清空")}</button>
-              </label>
-              <button class="search-submit" type="button">${icon("search")}开始搜索</button>
-              <span class="chip search-count" id="searchCount"></span>
-            </div>
             <div class="head case-head">
               <div>
                 <h2>${icon("case")}案例资产</h2>
               </div>
+              <div class="module-head-actions"><span>${caseAssets.length}项</span><button class="industry-more detail-trigger" type="button" data-detail-key="case-more">${icon("detail")}更多</button></div>
             </div>
             <div class="case-grid" id="caseAssets"></div>
           </section>
@@ -405,12 +509,12 @@ function renderShell() {
             <div class="entries" id="platforms"></div>
           </section>
           <section class="section product-board">
-            <div class="panel" id="software-section"><div class="head"><h2>产品软件矩阵</h2></div><div class="software-map" id="software"></div></div>
-            <div class="panel" id="saas-section"><div class="head"><h2>SaaS 产品</h2></div><div class="saas-cloud" id="saas"></div></div>
+            <div class="panel" id="software-section"><div class="head"><h2>产品软件矩阵</h2><div class="module-head-actions"><span>${software.length}项</span><button class="industry-more detail-trigger" type="button" data-detail-key="software-more">${icon("detail")}更多</button></div></div><div class="software-map" id="software"></div></div>
+            <div class="panel" id="saas-section"><div class="head"><h2>SaaS 产品</h2><div class="module-head-actions"><span>${saas.length}项</span><button class="industry-more detail-trigger" id="saasMore" type="button" data-detail-key="saas-more">${icon("detail")}更多</button></div></div><div class="saas-cloud" id="saas"></div></div>
           </section>
-          <section class="section scene-section" id="scene-section"><div class="head"><h2>场景运营库</h2><span>行业现场设备应用</span></div><div class="scene-library" id="sceneLibrary"></div></section>
-          <section class="section" id="hardware-section"><div class="head"><h2>智能硬件</h2></div><div class="hardware-grid" id="hardware"></div></section>
-          <section class="section" id="equipment-section"><div class="head"><h2>智能装备</h2></div><div class="hardware-grid" id="equipment"></div></section>
+          <section class="section scene-section" id="scene-section"><div class="head"><h2>场景运营库</h2><div class="module-head-actions"><span>${sceneOperationLibrary.length}项</span><button class="industry-more detail-trigger" type="button" data-detail-key="scene-more">${icon("detail")}更多</button></div></div><div class="scene-library" id="sceneLibrary"></div></section>
+          <section class="section" id="hardware-section"><div class="head"><h2>智能硬件</h2><div class="module-head-actions"><span>${hardware.length}项</span><button class="industry-more detail-trigger" type="button" data-detail-key="hardware-more">${icon("detail")}更多</button></div></div><div class="hardware-grid" id="hardware"></div></section>
+          <section class="section" id="equipment-section"><div class="head"><h2>智能装备</h2><div class="module-head-actions"><span>${equipment.length}项</span><button class="industry-more detail-trigger" type="button" data-detail-key="equipment-more">${icon("detail")}更多</button></div></div><div class="hardware-grid" id="equipment"></div></section>
         </section>
         <aside class="side">
           <div class="doc-panel">
@@ -425,10 +529,14 @@ function renderShell() {
                 <div class="governance-card"><span>${icon("chart")}完成度</span><b>72%</b><em>资料治理</em></div>
                 <div class="governance-card"><span>${icon("document")}治理项</span><b>35</b><em>待跟进</em></div>
                 <div class="governance-card"><span>${icon("warning")}异常项</span><b>4</b><em>需处理</em></div>
+                <button class="governance-card detail-trigger" type="button" data-detail-key="asset-access-log"><span>${icon("permission")}访问记录<i>${icon("detail", "查看详情")}</i></span><b>${assetAccessLogs.length}</b><em>查看详情</em></button>
+                <button class="governance-card detail-trigger" type="button" data-detail-key="asset-lifecycle"><span>${icon("timeline")}生命周期<i>${icon("detail", "查看详情")}</i></span><b>${assetLifecycleDetails.length}</b><em>查看详情</em></button>
+                <button class="governance-card detail-trigger is-risk" type="button" data-detail-key="asset-low-use"><span>${icon("warning")}低利用率<i>${icon("detail", "查看详情")}</i></span><b>${lowUtilizationAssets.length}</b><em>查看详情</em></button>
+                <button class="governance-card detail-trigger is-idle" type="button" data-detail-key="asset-idle"><span>${icon("archive")}闲置资产<i>${icon("detail", "查看详情")}</i></span><b>${idleAssetDetails.length}</b><em>查看详情</em></button>
                 <button class="governance-card design-library-entry detail-trigger" type="button" data-detail-key="design-library">
-                  <span>${icon("blueprint")}设计库</span>
+                  <span>${icon("blueprint")}设计库<i>${icon("detail", "查看详情")}</i></span>
                   <b>${designLibrary.length}</b>
-                  <em>未开发产品</em>
+                  <em>查看详情</em>
                 </button>
               </div>
             </div>
@@ -456,24 +564,38 @@ function renderData() {
     </div>
   `).join("");
 
+  detailRegistry.set("software-more", createProductMoreDetail("产品软件矩阵更多", "产品软件矩阵", "software", software, 0));
   byId("software").innerHTML = software.map((item, index) => productAppCard(item, "software", index)).join("");
 
-  byId("saas").innerHTML = saas.map((item, index) => productAppCard(item, "saas", index)).join("");
+  const saasDisplay = saasDisplayItems();
+  detailRegistry.set("saas-more", createProductMoreDetail("SaaS 产品更多", "SaaS 产品", "saas", productMoreItems("saas"), 0));
+  byId("saas").innerHTML = saasDisplay.visibleItems.map((item, index) => productAppCard(item, "saas", index)).join("");
   renderSceneLibrary();
 
-  const industryPatentTotal = industries.flatMap((zone) => zone[1]).reduce((sum, item) => sum + Number(item[1] || 0), 0);
-  const industryCopyrightTotal = industries.flatMap((zone) => zone[1]).reduce((sum, item) => sum + Number(item[2] || 0), 0);
+  const displayZones = industryDisplayZones();
+  const industryPatentTotal = displayZones.flatMap((zone) => zone.items).reduce((sum, entry) => sum + Number(entry.item[1] || 0), 0);
+  const industryCopyrightTotal = displayZones.flatMap((zone) => zone.items).reduce((sum, entry) => sum + Number(entry.item[2] || 0), 0);
   byId("industryStats").textContent = `专利 ${industryPatentTotal} · 软著 ${industryCopyrightTotal}`;
   byId("industries").innerHTML = `
     <div class="industry-board-grid">
-      ${industries.map((zone, zoneIndex) => `
-        <div class="zone search-item" data-search="${zone[0]} ${zone[1].flat().join(" ")} 行业">
-          <div class="zone-head"><b>${icon("industry")}${zone[0]}</b><span>${zone[1].length}项</span></div>
+      ${displayZones.map((zone, zoneIndex) => {
+        const visibleItems = zone.visibleItems || zone.items;
+        const moreKey = `industry-more-${zoneIndex}`;
+        if (zone.moreItems?.length) detailRegistry.set(moreKey, createIndustryMoreDetail(zone, zoneIndex));
+        return `
+        <div class="zone search-item" data-search="${zone.name} ${zone.items.map((entry) => entry.item.join(" ")).join(" ")} 行业">
+          <div class="zone-head">
+            <b>${icon("industry")}${zone.name}</b>
+            <div class="zone-head-actions">
+              <span class="zone-count">${zone.items.length}项</span>
+              ${zone.moreItems?.length ? `<button class="industry-more detail-trigger" type="button" data-detail-key="${moreKey}">${icon("detail")}更多</button>` : ""}
+            </div>
+          </div>
           <div class="zone-grid">
-            ${zone[1].map((item, itemIndex) => industryCard(zone[0], item, zoneIndex, itemIndex)).join("")}
+            ${visibleItems.map((entry, itemIndex) => industryCard(zone.name, entry.item, zoneIndex, itemIndex, entry.source, entry.visualTitle)).join("")}
           </div>
         </div>
-      `).join("")}
+      `;}).join("")}
     </div>
   `;
 
@@ -484,8 +606,8 @@ function renderData() {
   `).join("");
   renderRenewalTodos();
 
-  const deviceCard = (item, kind, index) => {
-    const key = `device-${kind}-${index}`;
+  const deviceCard = (item, kind, index, keyPrefix = "device") => {
+    const key = `${keyPrefix}-${kind}-${index}`;
     detailRegistry.set(key, createDeviceDetail(item, kind, index));
     return `
       <button class="device-card search-item detail-trigger" type="button" data-detail-key="${key}" data-search="${item[0]} ${item[1]} ${kind} 设备">
@@ -495,8 +617,10 @@ function renderData() {
       </button>
     `;
   };
+  detailRegistry.set("hardware-more", createDeviceMoreDetail("智能硬件更多", "智能硬件", hardware, 0));
+  detailRegistry.set("equipment-more", createDeviceMoreDetail("智能装备更多", "智能装备", equipment.slice(8), 8));
   byId("hardware").innerHTML = hardware.map((item, index) => deviceCard(item, "智能硬件", index)).join("");
-  byId("equipment").innerHTML = equipment.map((item, index) => deviceCard(item, "智能装备", index)).join("");
+  byId("equipment").innerHTML = equipment.slice(0, 8).map((item, index) => deviceCard(item, "智能装备", index)).join("");
 
   byId("docs").innerHTML = `
     <h2 class="doc-list-title">${icon("document")}公司资料</h2>
@@ -588,20 +712,51 @@ function renderRenewalTodos() {
 }
 
 function renderDocMatrix() {
+  const usageGroups = [
+    {
+      name: "对外使用",
+      note: "客户展示、品牌传播、资质证明",
+      sections: [
+        ["品牌入口", [["商标", 18], ["网站", 3], ["公众号", 5], ["域名", 8]]],
+        ["资质证明", [["专利", 41], ["软著", 31], ["证书", 6], ["荣誉资质", 27]]],
+        ["宣传获客", [["宣传册", 36], ["展会资料", 11], ["方案PPT", 24], ["客户案例", 18], ["企业照片", 126]]]
+      ]
+    },
+    {
+      name: "对内管理",
+      note: "经营支撑、制度合同、申报归档",
+      sections: [
+        ["经营资料", [["应用表单", 17], ["合同模板", 23], ["企业资料", 29], ["证照", 15]]],
+        ["合规申报", [["申报中", 8], ["申报文件", 32], ["规章制度", 16], ["大事记", 42]]],
+        ["工具资产", [["外购软件", 9], ["AI工具", 14], ["插件", 22], ["文案", 58]]]
+      ]
+    }
+  ];
   byId("docMatrix").innerHTML = `
     <div class="doc-matrix-title">
       <b>${icon("document")}公司资料分类</b>
       <span>点击数字查看归档详情</span>
     </div>
     <div class="doc-matrix-list">
-      ${companyDocMatrix.map((group, groupIndex) => `
-        <div class="doc-matrix-row search-item" data-search="${group[0]} ${group[1].flat().join(" ")} 公司资料">
-          <div class="doc-matrix-items">
-            ${group[1].map((item, itemIndex) => {
-              const key = `doc-${groupIndex}-${itemIndex}`;
-              detailRegistry.set(key, createDocDetail(group[0], item));
-              return `<button class="doc-matrix-item detail-trigger" type="button" data-detail-key="${key}"><span>${item[0]}</span><b>${item[1]}</b></button>`;
-            }).join("")}
+      ${usageGroups.map((group, groupIndex) => `
+        <div class="doc-usage-card search-item" data-search="${group.name} ${group.note} ${group.sections.flat(2).join(" ")} 公司资料">
+          <div class="doc-usage-head">
+            <b>${icon(groupIndex === 0 ? "media" : "archive")}${group.name}</b>
+            <span>${group.note}</span>
+          </div>
+          <div class="doc-usage-sections">
+            ${group.sections.map((section, sectionIndex) => `
+              <div class="doc-usage-section">
+                <h3>${section[0]}</h3>
+                <div class="doc-matrix-items">
+                  ${section[1].map((item, itemIndex) => {
+                    const key = `doc-usage-${groupIndex}-${sectionIndex}-${itemIndex}`;
+                    detailRegistry.set(key, createDocDetail(section[0], item));
+                    return `<button class="doc-matrix-item detail-trigger" type="button" data-detail-key="${key}"><span>${item[0]}</span><b>${item[1]}</b></button>`;
+                  }).join("")}
+                </div>
+              </div>
+            `).join("")}
           </div>
         </div>
       `).join("")}
@@ -610,25 +765,29 @@ function renderDocMatrix() {
 }
 
 function renderSceneLibrary() {
-  byId("sceneLibrary").innerHTML = sceneOperationLibrary.map((item, index) => {
-    const key = `scene-${index}`;
-    detailRegistry.set(key, createSceneDetail(item));
-    return `
-      <button class="scene-card search-item detail-trigger" type="button" data-detail-key="${key}" data-search="${item.name} ${item.device} ${item.scene} 场景运营库">
-        <div class="scene-card-media"><img src="${item.image}" alt="${item.name}"></div>
-        <div>
-          <span class="scene-card-device">${icon(item.device.includes("看板") ? "chart" : item.device.includes("RFID") ? "hardware" : "equipment")}${item.device}</span>
-          <b>${item.name}</b>
-          <span>${item.role}</span>
-          <p>${item.scene}</p>
-        </div>
-        <em>${icon("download")}资料</em>
-      </button>
-    `;
-  }).join("");
+  detailRegistry.set("scene-more", createSceneMoreDetail());
+  byId("sceneLibrary").innerHTML = sceneOperationLibrary.map((item, index) => sceneCard(item, index)).join("");
+}
+
+function sceneCard(item, index, keyPrefix = "scene") {
+  const key = `${keyPrefix}-${index}`;
+  detailRegistry.set(key, createSceneDetail(item));
+  return `
+    <button class="scene-card search-item detail-trigger" type="button" data-detail-key="${key}" data-search="${item.name} ${item.device} ${item.scene} 场景运营库">
+      <div class="scene-card-media"><img src="${item.image}" alt="${item.name}"></div>
+      <div>
+        <span class="scene-card-device">${icon(item.device.includes("看板") ? "chart" : item.device.includes("RFID") ? "hardware" : "equipment")}${item.device}</span>
+        <b>${item.name}</b>
+        <span>${item.role}</span>
+        <p>${item.scene}</p>
+      </div>
+      <em>${icon("download")}资料</em>
+    </button>
+  `;
 }
 
 function renderCaseAssets() {
+  detailRegistry.set("case-more", createCaseMoreDetail());
   byId("caseAssets").innerHTML = visibleCaseAssets().map((item, index) => caseCard(item, index)).join("");
 }
 
@@ -636,17 +795,17 @@ function visibleCaseAssets() {
   return caseAssets;
 }
 
-function caseCard(item, index) {
-  const key = `case-${index}`;
+function caseCard(item, index, keyPrefix = "case") {
+  const key = `${keyPrefix}-${index}`;
   const visual = caseVisuals[item.name] || {};
-  const costValue = caseCostValue(item);
-  const personCount = item.contributors?.length || 0;
+  const manager = employeeDirectory[item.manager];
+  const engineer = employeeDirectory[item.engineer];
   const images = visual.card || [
     previewImages[index % previewImages.length],
     previewImages[(index + 1) % previewImages.length]
   ];
-  const patentKey = `ip-case-${index}-patent`;
-  const copyrightKey = `ip-case-${index}-copyright`;
+  const patentKey = `ip-${keyPrefix}-${index}-patent`;
+  const copyrightKey = `ip-${keyPrefix}-${index}-copyright`;
   detailRegistry.set(key, createCaseDetail(item, visual));
   detailRegistry.set(patentKey, createIpDetail("patent", item.name, item.patents));
   detailRegistry.set(copyrightKey, createIpDetail("copyright", item.name, item.copyrights));
@@ -666,11 +825,6 @@ function caseCard(item, index) {
       <div class="case-components">
         ${item.modules.slice(0, 5).map((module) => `<span>${icon("module")}${module}</span>`).join("")}
       </div>
-      <div class="case-value-chain">
-        <span>${icon("patent")}专利 ${item.patents} / 软著 ${item.copyrights}</span>
-        <span>${icon("person")}人员 ${personCount} 人</span>
-        <span>${icon("cost")}成本 ${costValue}</span>
-      </div>
       <div class="case-ip-assets">
         <button class="asset-mini asset-strip detail-trigger" type="button" data-detail-key="${patentKey}">专利 ${item.patents}</button>
         <button class="asset-mini asset-strip detail-trigger" type="button" data-detail-key="${copyrightKey}">软著 ${item.copyrights}</button>
@@ -679,9 +833,25 @@ function caseCard(item, index) {
         ${images.map((image, imageIndex) => `<img src="${image}" alt="${item.name}图片${imageIndex + 1}">`).join("")}
       </div>
       <div class="case-actions">
+        <div class="case-owner-summary">
+          ${caseOwnerSummary("产品", item.manager, manager, item.managerState)}
+          ${caseOwnerSummary("技术", item.engineer, engineer, item.engineerState)}
+        </div>
         <button type="button">${icon("detail")}详情</button>
       </div>
     </article>
+  `;
+}
+
+function caseOwnerSummary(label, code, person, state) {
+  const status = statusText(person?.status || state);
+  const warning = person?.status === "departed" || state === "departed" ? "交接预警" : person?.status === "new" || state === "new" ? "补齐预警" : "正常";
+  return `
+    <button class="case-owner-chip detail-trigger state-${person?.status || state}" type="button" data-detail-key="person-${code}">
+      <span>${code} · ${person?.role || `${label}负责人`}</span>
+      <b>${person?.department || "资产责任工位"}</b>
+      <em>${warning} · ${status}</em>
+    </button>
   `;
 }
 
@@ -692,7 +862,7 @@ function caseCostValue(item) {
   return "96万";
 }
 
-function productAppCard(item, type, index) {
+function productAppCard(item, type, index, keyPrefix = type) {
   const title = item[0];
   const group = type === "saas" ? "SaaS产品" : "产品软件矩阵";
   const iconName = type === "saas" ? "saas" : "software";
@@ -700,9 +870,9 @@ function productAppCard(item, type, index) {
   const visual = visualMap[title] || {};
   const image = visual.image || previewImages[(index + (type === "saas" ? 2 : 0)) % previewImages.length];
   const secondaryImages = productSecondaryImages(type, title, index);
-  const key = `${type}-${index}`;
-  const patentKey = `ip-${type}-${index}-patent`;
-  const copyrightKey = `ip-${type}-${index}-copyright`;
+  const key = `${keyPrefix}-${index}`;
+  const patentKey = `ip-${keyPrefix}-${index}-patent`;
+  const copyrightKey = `ip-${keyPrefix}-${index}-copyright`;
   detailRegistry.set(key, createProductDetail(item, type, index, visual, secondaryImages));
   detailRegistry.set(patentKey, createIpDetail("patent", title, item[3]));
   detailRegistry.set(copyrightKey, createIpDetail("copyright", title, item[4]));
@@ -742,19 +912,19 @@ function productAppCard(item, type, index) {
   `;
 }
 
-function industryCard(zoneName, item, zoneIndex, itemIndex) {
-  const key = `industry-${zoneIndex}-${itemIndex}`;
+function industryCard(zoneName, item, zoneIndex, itemIndex, sourceName = zoneName, visualTitle = item[0], keyPrefix = "industry") {
+  const key = `${keyPrefix}-${zoneIndex}-${itemIndex}`;
   const title = item[0];
   const patent = Number(item[1] || 0);
   const copyright = Number(item[2] || 0);
-  const visual = industryVisuals[`${zoneName}/${title}`] || {};
+  const visual = industryVisuals[`${sourceName}/${visualTitle}`] || industryVisuals[`${zoneName}/${title}`] || {};
   const image = visual.image || previewImages[(zoneIndex + itemIndex) % previewImages.length];
-  const secondaryImages = industrySecondaryImages(zoneName, title, zoneIndex, itemIndex);
-  const patentKey = `ip-industry-${zoneIndex}-${itemIndex}-patent`;
-  const copyrightKey = `ip-industry-${zoneIndex}-${itemIndex}-copyright`;
-  detailRegistry.set(key, createIndustryDetail(zoneName, item, visual, secondaryImages));
-  detailRegistry.set(patentKey, createIpDetail("patent", `${zoneName}${title}`, patent));
-  detailRegistry.set(copyrightKey, createIpDetail("copyright", `${zoneName}${title}`, copyright));
+  const secondaryImages = industrySecondaryImages(sourceName, visualTitle, zoneIndex, itemIndex);
+  const patentKey = `ip-${keyPrefix}-${zoneIndex}-${itemIndex}-patent`;
+  const copyrightKey = `ip-${keyPrefix}-${zoneIndex}-${itemIndex}-copyright`;
+  detailRegistry.set(key, createIndustryDetail(sourceName, item, visual, secondaryImages));
+  detailRegistry.set(patentKey, createIpDetail("patent", `${sourceName}${title}`, patent));
+  detailRegistry.set(copyrightKey, createIpDetail("copyright", `${sourceName}${title}`, copyright));
   return `
     <div class="industry app-card search-item" data-search="${zoneName} ${searchText(item)} 行业 专利 软著">
       <div class="app-card-main">
@@ -813,7 +983,73 @@ function createIndustryDetail(zoneName, item, visual, secondaryImages) {
     support: ["手机", "工位机", "电脑端", "电子看板"],
     docs: ["产品需求规格说明书", "技术架构设计方案", "产品演示与解决方案PPT"],
     profile,
+    investment: profileInvestment(profile, appVersionInfo.currentVersion),
+    contributionPeople: contributionPeople([], title),
     appDownload: true
+  };
+}
+
+function createIndustryMoreDetail(zone, zoneIndex) {
+  return {
+    type: "industry-more",
+    title: `${zone.name}更多行业内容`,
+    subtitle: `隐藏模块 · ${zone.moreItems.length}项 · 点击查看详情`,
+    iconName: "industry",
+    tags: [zone.name, "更多模块", "行业内容"],
+    zoneIndex,
+    items: zone.moreItems
+  };
+}
+
+function createProductMoreDetail(title, subtitle, productType, items, startIndex) {
+  return {
+    type: "product-more",
+    title,
+    subtitle: `${subtitle} · ${items.length}项 · 点击查看详情`,
+    iconName: productType === "saas" ? "saas" : "software",
+    tags: [productType === "saas" ? "SaaS应用" : "工业软件", "更多模块", "产品资产"],
+    productType,
+    startIndex,
+    items
+  };
+}
+
+function productMoreItems(productType) {
+  return productType === "saas" ? saas : software;
+}
+
+function createCaseMoreDetail() {
+  return {
+    type: "case-more",
+    title: "案例资产更多",
+    subtitle: `案例资产 · ${caseAssets.length}项 · 点击查看详情`,
+    iconName: "case",
+    tags: ["案例资产", "知识产权", "项目沉淀"],
+    items: caseAssets
+  };
+}
+
+function createDeviceMoreDetail(title, kind, items, startIndex) {
+  return {
+    type: "device-more",
+    title,
+    subtitle: `${kind} · ${items.length}项 · 点击查看详情`,
+    iconName: kind === "智能硬件" ? "hardware" : "equipment",
+    tags: [kind, "设备资产", "更多模块"],
+    kind,
+    startIndex,
+    items
+  };
+}
+
+function createSceneMoreDetail() {
+  return {
+    type: "scene-more",
+    title: "场景运营库更多",
+    subtitle: `场景运营库 · ${sceneOperationLibrary.length}项 · 点击查看详情`,
+    iconName: "equipment",
+    tags: ["场景运营库", "现场应用", "资料沉淀"],
+    items: sceneOperationLibrary
   };
 }
 
@@ -843,6 +1079,8 @@ function createProductDetail(item, type, index, visual, secondaryImages) {
     support: type === "saas" ? ["手机", "电脑端", "企业微信", "订阅门户"] : ["电脑端", "工位机", "电子看板", "接口网关"],
     docs: ["产品需求规格说明书", "技术架构设计方案", "演示与解决方案PPT"],
     profile,
+    investment: profileInvestment(profile, item[2]),
+    contributionPeople: contributionPeople([], title),
     appDownload: type === "saas"
   };
 }
@@ -965,6 +1203,7 @@ function uiGalleryFor(title, fallbackImages) {
 
 function createCaseDetail(item, visual = {}) {
   const previews = visual.previews || [previewImages[0], previewImages[1], previewImages[3]];
+  const investment = caseInvestment(item);
   return {
     type: "case",
     title: item.name,
@@ -986,6 +1225,8 @@ function createCaseDetail(item, visual = {}) {
     modules: item.modules,
     components: item.components,
     contributors: item.contributors,
+    investment,
+    contributionPeople: caseContributionPeople(item, investment),
     evolution: item.evolution,
     evidence: item.evidence,
     owners: [
@@ -1014,9 +1255,11 @@ function statusLabel(status) {
 }
 
 function personBadge(role, name, state) {
-  const person = employeeDirectory[name];
+  const found = personByCodeOrName(name);
+  const code = found?.[0] || name;
+  const person = found?.[1];
   const label = statusText(person?.status || state);
-  return `<button class="person-badge detail-trigger state-${person?.status || state}" type="button" data-detail-key="person-${name}"><i></i><b>${role}</b><em>${name} · ${label}</em></button>`;
+  return `<button class="person-badge detail-trigger state-${person?.status || state}" type="button" data-detail-key="person-${code}"><i></i><b>${role}</b><em>${person?.name || name} · ${code} · ${label}</em></button>`;
 }
 
 function evidenceIcon(label) {
@@ -1165,6 +1408,11 @@ function detailMarkup(detail) {
   if (detail.type === "idle-assets") return idleAssetDetailMarkup(detail);
   if (detail.type === "renewal-todos") return renewalTodoDetailMarkup(detail);
   if (detail.type === "design-library") return designLibraryDetailMarkup(detail);
+  if (detail.type === "industry-more") return industryMoreDetailMarkup(detail);
+  if (detail.type === "product-more") return productMoreDetailMarkup(detail);
+  if (detail.type === "case-more") return caseMoreDetailMarkup(detail);
+  if (detail.type === "device-more") return deviceMoreDetailMarkup(detail);
+  if (detail.type === "scene-more") return sceneMoreDetailMarkup(detail);
   return `
     <div class="detail-head">
       <div class="detail-app-icon">${icon(detail.iconName)}</div>
@@ -1231,6 +1479,20 @@ function uiGalleryMarkup(detail) {
 function productProfileMarkup(detail) {
   const profile = detail.profile;
   return `
+    ${detail.investment ? `
+      <h3>${icon("cost")}投入概览</h3>
+      <div class="investment-summary">
+        <div><span>已有投入人天</span><strong>${detail.investment.days}人天</strong></div>
+        <div><span>投入成本</span><strong>${detail.investment.cost}</strong></div>
+        <div><span>对应版本</span><strong>${detail.investment.version}</strong></div>
+      </div>
+    ` : ""}
+    ${detail.contributionPeople?.length ? `
+      <h3>${icon("person")}投入人员</h3>
+      <div class="people-ledger">
+        ${detail.contributionPeople.map((member) => `<div><b>${member.name}</b><span>${member.role}</span><em>${member.code} · ${member.status}</em></div>`).join("")}
+      </div>
+    ` : ""}
     <h3>${icon("cost")}投入成本</h3>
     <div class="cost-mini-grid">${profile.costs.map((item) => `<div><span>${item[0]}</span><strong>${item[1]}</strong></div>`).join("")}</div>
     <h3>${icon("task")}工时构成</h3>
@@ -1423,6 +1685,83 @@ function designLibraryDetailMarkup(detail) {
   `;
 }
 
+function industryMoreDetailMarkup(detail) {
+  return `
+    <div class="detail-head">
+      <div class="detail-app-icon">${icon("industry")}</div>
+      <div><h2 id="detailTitle">${detail.title}</h2><p>${detail.subtitle}</p><div class="detail-tags">${detail.tags.map((tag) => `<span>${icon("tag")}${tag}</span>`).join("")}</div></div>
+    </div>
+    <div class="more-card-grid">
+      ${detail.items.map((entry, index) => {
+        const cardIndex = index + 9;
+        return industryCard(detail.tags[0], entry.item, detail.zoneIndex, cardIndex, entry.source, entry.visualTitle, "industry-more-card");
+      }).join("")}
+    </div>
+  `;
+}
+
+function productMoreDetailMarkup(detail) {
+  return `
+    <div class="detail-head">
+      <div class="detail-app-icon">${icon(detail.iconName)}</div>
+      <div><h2 id="detailTitle">${detail.title}</h2><p>${detail.subtitle}</p><div class="detail-tags">${detail.tags.map((tag) => `<span>${icon("tag")}${tag}</span>`).join("")}</div></div>
+    </div>
+    <div class="more-card-grid">
+      ${detail.items.map((item, index) => {
+        const productIndex = detail.startIndex + index;
+        return productAppCard(item, detail.productType, productIndex, `${detail.productType}-more-card`);
+      }).join("")}
+    </div>
+  `;
+}
+
+function caseMoreDetailMarkup(detail) {
+  return `
+    <div class="detail-head">
+      <div class="detail-app-icon">${icon("case")}</div>
+      <div><h2 id="detailTitle">${detail.title}</h2><p>${detail.subtitle}</p><div class="detail-tags">${detail.tags.map((tag) => `<span>${icon("tag")}${tag}</span>`).join("")}</div></div>
+    </div>
+    <div class="case-more-grid">
+      ${detail.items.map((item, index) => caseCard(item, index, "case-more-card")).join("")}
+    </div>
+  `;
+}
+
+function deviceMoreDetailMarkup(detail) {
+  return `
+    <div class="detail-head">
+      <div class="detail-app-icon">${icon(detail.iconName)}</div>
+      <div><h2 id="detailTitle">${detail.title}</h2><p>${detail.subtitle}</p><div class="detail-tags">${detail.tags.map((tag) => `<span>${icon("tag")}${tag}</span>`).join("")}</div></div>
+    </div>
+    <div class="device-more-grid">
+      ${detail.items.map((item, index) => {
+        const itemIndex = detail.startIndex + index;
+        const key = `device-more-${detail.kind}-${itemIndex}`;
+        detailRegistry.set(key, createDeviceDetail(item, detail.kind, itemIndex));
+        return `
+          <button class="device-card search-item detail-trigger" type="button" data-detail-key="${key}" data-search="${item[0]} ${item[1]} ${detail.kind} 设备">
+            <div class="scene"><img src="${item[2]}" alt="${item[0]}"></div>
+            <div class="device-title"><b>${item[0]}</b><em>${icon("detail")}详情</em></div>
+            <span>${item[1]}</span>
+          </button>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function sceneMoreDetailMarkup(detail) {
+  return `
+    <div class="detail-head">
+      <div class="detail-app-icon">${icon(detail.iconName)}</div>
+      <div><h2 id="detailTitle">${detail.title}</h2><p>${detail.subtitle}</p><div class="detail-tags">${detail.tags.map((tag) => `<span>${icon("tag")}${tag}</span>`).join("")}</div></div>
+    </div>
+    <div class="scene-more-grid">
+      ${detail.items.map((item, index) => sceneCard(item, index, "scene-more-card")).join("")}
+    </div>
+  `;
+}
+
 function caseDetailMarkup(detail) {
   return `
     <div class="detail-head case-detail-head">
@@ -1451,13 +1790,21 @@ function caseDetailMarkup(detail) {
           <span>${icon("person")}人员贡献 ${detail.metrics[2][1]}人协同</span>
           <span>${icon("cost")}成本沉淀 ${detail.metrics[3][1]}</span>
         </div>
+        ${detail.investment ? `
+          <h3>${icon("cost")}投入概览</h3>
+          <div class="investment-summary">
+            <div><span>已有投入人天</span><strong>${detail.investment.days}人天</strong></div>
+            <div><span>投入成本</span><strong>${detail.investment.cost}</strong></div>
+            <div><span>对应版本</span><strong>${detail.investment.version}</strong></div>
+          </div>
+        ` : ""}
         <h3>${icon("module")}模块构成</h3>
         <div class="detail-chip-grid">${detail.modules.map((item) => `<span>${icon("module")}${item}</span>`).join("")}</div>
         <h3>${icon("component")}标准组件</h3>
         <div class="detail-chip-grid">${detail.components.map((item) => `<span>${icon("component")}${item}</span>`).join("")}</div>
         <h3>${icon("person")}组成人员贡献度</h3>
         <div class="contribution-list">
-          ${detail.contributors.map((member) => `<div style="--w:${member[2]}%"><b>${member[0]}</b><span>${member[1]}</span><i></i><em>${member[2]}%</em></div>`).join("")}
+          ${detail.contributionPeople.map((member) => `<div style="--w:${member.ratio}%"><b>${member.name}</b><span>${member.role}</span><small>${member.code} · ${member.status}</small><strong>${member.effortDays}人天 · ${member.cost}</strong><i></i><em>${member.ratio}%</em></div>`).join("")}
         </div>
         <h3>${icon("timeline")}演进动线</h3>
         <div class="detail-timeline">${detail.evolution.map((item) => `<span>${item}</span>`).join("")}</div>
