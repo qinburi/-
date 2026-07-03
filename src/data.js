@@ -766,7 +766,7 @@ export const appVersionInfo = {
       date: "2026-07-03",
       title: "当前资产展示与分类交互优化版",
       status: "当前版本",
-      systemUrl: "/versions/v1.0.2/index.html",
+      systemUrl: "versions/v1.0.2/index.html",
       modules: ["顶部导航", "公司资料", "案例资产", "行业内容", "产品矩阵", "场景运营库", "资产治理"],
       changes: [
         "公司资料按对外使用、对内管理重新分类展示，保留资料详情查看能力。",
@@ -781,7 +781,7 @@ export const appVersionInfo = {
       date: "2026-07-02",
       title: "资产展示与治理看板优化版",
       status: "历史版本",
-      systemUrl: "/versions/v1.0.1/index.html",
+      systemUrl: "versions/v1.0.1/index.html",
       modules: ["顶部导航", "公司资料", "案例资产", "资产概览", "待办提醒"],
       changes: [
         "顶部分类导航调整为网站式展示，移除数量展示，提升页面浏览入口清晰度。",
@@ -796,7 +796,7 @@ export const appVersionInfo = {
       date: "2026-07-01",
       title: "无形资产工作台基础版",
       status: "历史版本",
-      systemUrl: "/versions/v1.0.0/index.html",
+      systemUrl: "versions/v1.0.0/index.html",
       modules: ["资产概览", "公司资料", "案例资产", "产品矩阵", "场景运营库"],
       changes: [
         "建立汉脑无形资产工作台首页，统一展示案例、行业内容、核心平台、产品矩阵、SaaS应用和设备资产。",

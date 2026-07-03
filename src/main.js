@@ -461,6 +461,18 @@ function versionDetailMarkup(version) {
   `;
 }
 
+function resolveSystemUrl(systemUrl) {
+  if (!systemUrl) return "";
+  if (/^(https?:)?\/\//.test(systemUrl)) return systemUrl;
+  const normalizedUrl = systemUrl.replace(/^\.?\//, "");
+  const versionPathIndex = window.location.pathname.indexOf("/versions/");
+  const basePath =
+    versionPathIndex >= 0
+      ? window.location.pathname.slice(0, versionPathIndex + 1)
+      : window.location.pathname.slice(0, window.location.pathname.lastIndexOf("/") + 1);
+  return new URL(normalizedUrl, `${window.location.origin}${basePath}`).href;
+}
+
 function renderShell() {
   byId("app").innerHTML = `
     <main class="app" style="--hero-bg: url('./assets/photos/visuals/hannao-system-map-hero.png')">
@@ -1334,7 +1346,7 @@ function detailInfoRows(detail, kind) {
     return [
       ["资产台账主目录", `/无形资产台账/${detail.tags?.[0] || "综合资产"}/${base || "资产"}`, owner, "已同步"],
       ["证据资料目录", `/归档资料/证据链/${base || "资产"}`, ownerFor(detail, 1), "已归档"],
-      ["版本快照目录", `/versions/${appVersionInfo.currentVersion}/assets/${base || "asset"}`, ownerFor(detail, 2), "可追溯"]
+      ["版本快照目录", `versions/${appVersionInfo.currentVersion}/assets/${base || "asset"}`, ownerFor(detail, 2), "可追溯"]
     ];
   }
   if (kind === "owner") {
@@ -1885,7 +1897,7 @@ function bindInteractions() {
     if (!button || !versionModal.contains(button)) return;
     const url = button.dataset.systemUrl;
     if (!url) return;
-    window.open(url, "_blank", "noopener,noreferrer");
+    window.open(resolveSystemUrl(url), "_blank", "noopener,noreferrer");
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
