@@ -45,16 +45,60 @@ const previewImages = [
   "./assets/photos/vision-inspection.jpg",
   "./assets/photos/industrial-camera.jpg"
 ];
-const topNavItems = [
-  ["cases-section", "案例资产"],
-  ["industry-section", "行业内容"],
-  ["platform-section", "核心平台"],
-  ["software-section", "产品矩阵"],
-  ["saas-section", "SaaS应用"],
-  ["scene-section", "场景运营库"],
-  ["docMatrix", "资料资产"],
-  ["hardware-section", "智能硬件"],
-  ["equipment-section", "智能设备"]
+const topNavRows = [
+  {
+    level: "primary",
+    items: [
+      { label: "公司资料", target: "docMatrix" },
+      { label: "案例资产", target: "cases-section" },
+      { label: "行业内容", target: "industry-section" },
+      { label: "核心平台", target: "platform-section" },
+      { label: "产品矩阵", target: "software-section" },
+      { label: "SaaS应用", target: "saas-section" },
+      { label: "场景运营库", target: "scene-section" },
+      { label: "智能硬件", target: "hardware-section" },
+      { label: "智能设备", target: "equipment-section" },
+      { label: "资产治理", action: "chart" },
+      { label: "版本留痕", action: "version" }
+    ]
+  },
+  {
+    level: "secondary",
+    items: [
+      { label: "知识产权", target: "docMatrix" },
+      { label: "品牌渠道", target: "docMatrix" },
+      { label: "宣传资产", target: "docMatrix" },
+      { label: "企业档案", target: "docMatrix" },
+      { label: "专利软著", target: "cases-section" },
+      { label: "产品投入", target: "software-section" },
+      { label: "待办续费", target: "renewalTodos" },
+      { label: "访问日志", detail: "asset-access-log" },
+      { label: "生命周期", detail: "asset-lifecycle" },
+      { label: "设计库", detail: "design-library" }
+    ]
+  },
+  {
+    level: "tertiary",
+    items: [
+      { label: "ERP", target: "software-section" },
+      { label: "MES", target: "software-section" },
+      { label: "WMS", target: "software-section" },
+      { label: "PLM", target: "software-section" },
+      { label: "PDM", target: "software-section" },
+      { label: "MRP", target: "software-section" },
+      { label: "APS", target: "software-section" },
+      { label: "IES", target: "software-section" },
+      { label: "CRM", target: "software-section" },
+      { label: "达铃", target: "saas-section" },
+      { label: "考勤", target: "saas-section" },
+      { label: "餐饮", target: "saas-section" },
+      { label: "薪安", target: "saas-section" },
+      { label: "工位机", target: "scene-section" },
+      { label: "手持机", target: "scene-section" },
+      { label: "大屏看板", target: "scene-section" },
+      { label: "RFID", target: "scene-section" }
+    ]
+  }
 ];
 const todoStatusText = {
   normal: "正常",
@@ -473,6 +517,20 @@ function resolveSystemUrl(systemUrl) {
   return new URL(normalizedUrl, `${window.location.origin}${basePath}`).href;
 }
 
+function topNavMarkup() {
+  return `
+    <nav class="top-nav" aria-label="无形资产分类导航">
+      ${topNavRows.map((row) => `
+        <div class="top-nav-row top-nav-${row.level}">
+          ${row.items.map((item) => `
+            <button type="button"${item.target ? ` data-target="${item.target}"` : ""}${item.action ? ` data-action="${item.action}"` : ""}${item.detail ? ` data-detail-key="${item.detail}"` : ""}>${item.label}</button>
+          `).join("")}
+        </div>
+      `).join("")}
+    </nav>
+  `;
+}
+
 function renderShell() {
   byId("app").innerHTML = `
     <main class="app" style="--hero-bg: url('./assets/photos/visuals/hannao-system-map-hero.png')">
@@ -480,9 +538,6 @@ function renderShell() {
         <div class="brand">
           <img class="brand-logo" src="${brandLogo}" alt="汉脑科技">
           <div><h1>汉脑无形资产</h1></div>
-          <nav class="top-nav" aria-label="无形资产分类导航">
-            ${topNavItems.map((item) => `<button type="button" data-target="${item[0]}">${item[1]}</button>`).join("")}
-          </nav>
         </div>
         <div class="top-meta">
           <label class="search-box top-search" id="searchBox" title="搜索案例、产品、行业、资料、硬件">
@@ -502,6 +557,7 @@ function renderShell() {
           ${chartModalMarkup()}
           ${detailModalMarkup()}
           ${versionModalMarkup()}
+          ${topNavMarkup()}
           <section class="doc-matrix" id="docMatrix"></section>
           <section class="section case-hero" id="cases-section">
             <div class="head case-head">
@@ -1286,6 +1342,18 @@ function evidenceIcon(label) {
 function renderNavigation() {
   document.querySelectorAll(".top-nav button").forEach((button) => {
     button.addEventListener("click", () => {
+      if (button.dataset.action === "chart") {
+        byId("chartToggle")?.click();
+        return;
+      }
+      if (button.dataset.action === "version") {
+        byId("versionToggle")?.click();
+        return;
+      }
+      if (button.dataset.detailKey) {
+        setDetailModal(true, button.dataset.detailKey);
+        return;
+      }
       const target = byId(button.dataset.target);
       if (target) target.scrollIntoView({ block: "start", behavior: "smooth" });
     });

@@ -759,13 +759,28 @@ export const assetUiGalleries = {
 };
 
 export const appVersionInfo = {
-  currentVersion: "v1.0.2",
+  currentVersion: "v1.0.3",
   history: [
+    {
+      version: "v1.0.3",
+      date: "2026-07-14",
+      title: "三层导航与版本快照增强版",
+      status: "当前版本",
+      systemUrl: "versions/v1.0.3/index.html",
+      modules: ["三层导航", "公司资料", "版本留痕", "资产治理", "当前快照"],
+      changes: [
+        "新增仿门户式三层导航组织方式，保留无形资产现有分类内容。",
+        "三层导航移动到公司资料卡片上方，形成更完整的页面入口区域。",
+        "导航视觉继续沿用工作台蓝白、圆角、轻边框风格，不采用红色新闻站样式。",
+        "资产治理、版本留痕和细分资产入口继续复用现有滚动、弹窗和详情查看能力。",
+        "新增 v1.0.3 独立静态快照，可在版本历史中查看修改内容并切换访问。"
+      ]
+    },
     {
       version: "v1.0.2",
       date: "2026-07-03",
       title: "当前资产展示与分类交互优化版",
-      status: "当前版本",
+      status: "历史版本",
       systemUrl: "versions/v1.0.2/index.html",
       modules: ["顶部导航", "公司资料", "案例资产", "行业内容", "产品矩阵", "场景运营库", "资产治理"],
       changes: [
